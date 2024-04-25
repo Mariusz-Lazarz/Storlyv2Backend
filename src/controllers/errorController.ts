@@ -1,19 +1,49 @@
-import { ErrorRequestHandler } from "express";
+import { ErrorRequestHandler, Response } from "express";
+import CustomError from "../utils/customError.js";
+import { PgError } from "../utils/definitions.js";
 import dotenv from "dotenv";
 dotenv.config();
 
+const isOperationalError = (code: string): boolean => {
+  const operationalCodes: Set<string> = new Set([
+    "23505", // unique_violation
+    "23503", // foreign_key_violation
+    "23502", // not_null_violation
+  ]);
+
+  return operationalCodes.has(code);
+};
+
+const handlePgError = (err: PgError): CustomError => {
+  if (err.code === "23505") {
+    const fieldName = err.constraint.split("_")[1];
+    return new CustomError(
+      `Duplicated value of ${fieldName}. Please use a different ${fieldName}.`,
+      409
+    );
+  }
+  return new CustomError("Database error occurred", 500);
+};
+
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
-  const statusCode = err.statusCode || err.status || 500;
-  const message = statusCode === 500 ? "Internal Server Error" : err.message;
+  if (!("statusCode" in err)) {
+    err.statusCode = 500;
+  }
 
   if (process.env.NODE_ENV === "development") {
-    res.status(statusCode).json({
+    res.status(err.statusCode || 500).json({
       message: err.message,
       error: err,
       stack: err.stack,
     });
-  } else if (process.env.NODE_ENV === 'production') {
-    res.status(statusCode).json({ message });
+  } else {
+    let customError = { ...err };
+    if (err.code && isOperationalError(err.code)) {
+      customError = handlePgError(err);
+    } else {
+      customError = new CustomError("Something went wrong!", 500);
+    }
+    res.status(customError.statusCode).json({ message: customError.message });
   }
 };
 
