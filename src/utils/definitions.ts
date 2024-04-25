@@ -4,3 +4,14 @@ export interface PgError extends Error {
   table: string;
   constraint: string;
 }
+
+export interface UserCredentials {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}

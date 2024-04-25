@@ -26,24 +26,26 @@ const handlePgError = (err: PgError): CustomError => {
 };
 
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
-  if (!("statusCode" in err)) {
+  if (!("statusCode" in err) || err.statusCode === 500) {
     err.statusCode = 500;
   }
 
+  if (err.code && isOperationalError(err.code)) {
+    const customError = handlePgError(err);
+    err.message = customError.message;
+    err.statusCode = customError.statusCode;
+  } else if (err.statusCode === 500) {
+    err.message = "Something went wrong!";
+  }
+
   if (process.env.NODE_ENV === "development") {
-    res.status(err.statusCode || 500).json({
+    res.status(err.statusCode).json({
       message: err.message,
       error: err,
       stack: err.stack,
     });
   } else {
-    let customError = { ...err };
-    if (err.code && isOperationalError(err.code)) {
-      customError = handlePgError(err);
-    } else {
-      customError = new CustomError("Something went wrong!", 500);
-    }
-    res.status(customError.statusCode).json({ message: customError.message });
+    res.status(err.statusCode).json({ message: err.message });
   }
 };
 
