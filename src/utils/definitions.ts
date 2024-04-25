@@ -15,3 +15,10 @@ export interface LoginCredentials {
   email: string;
   password: string;
 }
+
+export interface UserType {
+  id: string;
+  email: string;
+  password: string | undefined;
+  name: string;
+}

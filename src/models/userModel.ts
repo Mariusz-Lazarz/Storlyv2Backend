@@ -2,7 +2,6 @@ import { Pool, PoolClient } from "pg";
 import bcrypt from "bcrypt";
 import { UserCredentials, LoginCredentials } from "../utils/definitions.js";
 import CustomError from "../utils/customError.js";
-import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -26,13 +25,6 @@ class User {
     }
   }
 
-  private signToken(id: string, email: string): string {
-    const token = jwt.sign({ id, email }, process.env.JWT_SECRET!, {
-      expiresIn: process.env.JWT_COOKIE_EXPIRES_IN,
-    });
-    return token;
-  }
-
   public async register(credentials: UserCredentials): Promise<any> {
     return this.dbOperation(async (client) => {
       const query =
@@ -48,9 +40,7 @@ class User {
     });
   }
 
-  public async login(
-    credentials: LoginCredentials
-  ): Promise<{ token: string; user: { name: string; email: string } }> {
+  public async login(credentials: LoginCredentials): Promise<any> {
     return this.dbOperation(async (client) => {
       const query =
         "SELECT id, name, email, password FROM users WHERE email = $1;";
@@ -65,15 +55,8 @@ class User {
       }
 
       const user = result.rows[0];
-      const token = this.signToken(user.id, user.email);
 
-      return {
-        token: token,
-        user: {
-          name: user.name,
-          email: user.email,
-        },
-      };
+      return user;
     });
   }
 }
